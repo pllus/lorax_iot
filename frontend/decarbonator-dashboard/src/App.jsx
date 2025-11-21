@@ -20,8 +20,8 @@ function App() {
     contentTitle = "Plant Stats Page";
     contentSubtitle = "คุณกำลังอยู่ที่หน้า Plant Stats";
   } else if (page === "prediction") {
-    contentTitle = "Prediction Page";
-    contentSubtitle = "คุณกำลังอยู่ที่หน้า Prediction";
+    contentTitle = "Map Page";
+    contentSubtitle = "คุณกำลังอยู่ที่หน้า Map";
   } else if (page === "about") {
     contentTitle = "About Us Page";
     contentSubtitle = "คุณกำลังอยู่ที่หน้า About Us";
@@ -53,10 +53,10 @@ function App() {
           </button>
 
           <button
-            className={getMenuItemClass("prediction")}
-            onClick={() => setPage("prediction")}
+            className={getMenuItemClass("map")}
+            onClick={() => setPage("map")}
           >
-            PREDICTION
+            Map
           </button>
 
           <button

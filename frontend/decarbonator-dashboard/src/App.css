@@ -30,10 +30,11 @@ body {
 /* Logo text */
 .logo {
   margin-bottom: 40px;
+  margin-left: 10px ;
 }
 
 .logo-small {
-  font-size: 10px;
+  font-size: 20px;
   letter-spacing: 2px;
   display: block;
 }
@@ -46,7 +47,7 @@ body {
 }
 
 .logo-sub {
-  font-size: 10px;
+  font-size: 20px;
   letter-spacing: 2px;
   margin-left : 150px;
 }
