@@ -1,0 +1,111 @@
+/* reset ง่ายๆ */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+body {
+  background-color: #ffffff;
+}
+
+/* ตัว container หลัก */
+.app {
+  display: flex;
+  height: 100vh; /* สูงเต็มหน้าจอ */
+}
+
+/* ---------------- Sidebar ---------------- */
+
+.sidebar {
+  width: 260px;
+  background-color: #1f7a4a; /* เขียว */
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 20px;
+}
+
+/* Logo text */
+.logo {
+  margin-bottom: 40px;
+}
+
+.logo-small {
+  font-size: 10px;
+  letter-spacing: 2px;
+  display: block;
+}
+
+.logo-main {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  display: block;
+}
+
+.logo-sub {
+  font-size: 10px;
+  letter-spacing: 2px;
+  margin-left : 150px;
+}
+
+/* เมนูด้านข้าง */
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.menu-item {
+  text-align: left;
+  padding: 10px 16px;
+  padding-left: 110px;
+  border-radius: 20px;
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  font-size: 12px;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+
+.menu-item:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.menu-item.active {
+  background-color: #ffffff;
+  color: #1f7a4a;
+}
+
+/* icon ต้นไม้ด้านล่าง */
+.plant-icon {
+  margin-top: auto; /* ดันให้ลงไปชิดด้านล่าง */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 20px;
+}
+
+.plant-emoji {
+  font-size: 72px;
+}
+
+/* ---------------- Content ด้านขวา ---------------- */
+
+.content {
+  flex: 1;
+  padding: 40px 60px;
+}
+
+.content-title {
+  font-size: 20px;
+  margin-bottom: 6px;
+}
+
+.content-subtitle {
+  font-size: 12px;
+  color: #777777;
+}
