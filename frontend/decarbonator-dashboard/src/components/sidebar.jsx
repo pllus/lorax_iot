@@ -2,14 +2,14 @@ function Sidebar({ currentPage, setPage }) {
   const menuItems = [
     { id: "dashboard", label: "DASHBOARD" },
     { id: "plant-stats", label: "PLANT STATS" },
-    { id: "prediction", label: "PREDICTION" },
+    { id: "map", label: "Map" },
     { id: "about", label: "ABOUT US" }
   ];
 
   return (
     <aside className="w-64 bg-[#1f7a4a] text-white flex flex-col p-6">
       {/* Logo */}
-      <div className="mb-10">
+      <div className="mb-10 pl-5">
         <span className="block text-[10px] tracking-[2px]">THE</span>
         <span className="block text-xl font-bold tracking-[1.5px]">DECARBONATOR</span>
         <span className="block text-[10px] tracking-[2px] ml-[150px]">3000</span>
