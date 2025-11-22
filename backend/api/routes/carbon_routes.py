@@ -1,7 +1,10 @@
-# app/api/routes/carbon_routes.py
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
+from typing import Optional, Literal
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 from backend.dropbox import service as dropbox_service
+
 
 router = APIRouter(prefix="/carbon", tags=["carbon"])
 
@@ -9,11 +12,22 @@ router = APIRouter(prefix="/carbon", tags=["carbon"])
 # ============================================================
 #                       CO2 SECTION
 # ============================================================
+executor = ThreadPoolExecutor(max_workers=4)
 
 @router.get("/co2/all", summary="CO2 raw data from WISE-4051 (all)")
-def co2_all_raw():
-    return dropbox_service.get_co2_all_raw()
-
+async def co2_all_raw(
+    limit: Optional[int] = Query(100, ge=1, le=166740, description="Limit number of results"),
+    interval: Optional[Literal["raw", "1min", "5min", "15min", "30min", "1hour"]] = Query("5min", description="Data aggregation interval")
+):
+    # Run the blocking Dropbox/pandas operations in a thread pool
+    loop = asyncio.get_event_loop()
+    data = await loop.run_in_executor(
+        executor,
+        dropbox_service.get_co2_all_raw,
+        limit,
+        interval
+    )
+    return data
 
 @router.get("/co2/hourly", summary="CO2 hourly average from WISE-4051")
 def co2_hourly():

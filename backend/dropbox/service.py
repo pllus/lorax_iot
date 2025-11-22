@@ -1,5 +1,8 @@
+# backend/dropbox/service.py
+
 import io
-from typing import List, Dict
+from typing import List, Dict, Optional, Literal
+from datetime import timedelta
 
 import dropbox
 import pandas as pd
@@ -11,6 +14,8 @@ CO2_COL = "COM_1 Wd_0"
 TEMP_COL = "COM_1 Wd_1"
 HUMID_COL = "COM_1 Wd_2"
 
+# Cache to avoid re-reading from Dropbox every time
+_cache = {}
 
 def get_client() -> dropbox.Dropbox:
     return dropbox.Dropbox(DROPBOX_TOKEN)
@@ -110,25 +115,48 @@ def add_timestamp_column(df: pd.DataFrame) -> pd.DataFrame:
     raise ValueError("Cannot build timestamp column from CSV (no usable time columns)")
 
 
-def read_all_csv_under(root_path: str) -> pd.DataFrame:
+def read_all_csv_under(root_path: str, use_cache: bool = True, skip_old_data: bool = True) -> pd.DataFrame:
+    # Use cache to avoid re-reading from Dropbox
+    if use_cache and root_path in _cache:
+        print(f"✅ Using cached data for {root_path}")
+        return _cache[root_path]
+    
+    print(f"📥 Reading from Dropbox: {root_path}")
     dbx = get_client()
     all_rows: List[pd.DataFrame] = []
 
     folders = list_date_folders(root_path)
+    
+    # OPTIMIZATION: Only read recent folders if skip_old_data=True
+    if skip_old_data and len(folders) > 7:
+        # Only read last 7 days of data
+        folders = sorted(folders)[-7:]
+        print(f"⚡ Skipping old data, reading last {len(folders)} folders")
+    
     for folder in folders:
         csv_files = list_csv_files(dbx, folder)
         for path in csv_files:
-            df = download_csv_to_df(dbx, path)
-            df = add_timestamp_column(df)
-            all_rows.append(df)
+            try:
+                df = download_csv_to_df(dbx, path)
+                df = add_timestamp_column(df)
+                all_rows.append(df)
+            except Exception as e:
+                print(f"⚠️ Failed to read {path}: {e}")
+                continue
 
     if not all_rows:
         return pd.DataFrame()
 
+    print(f"🔄 Concatenating {len(all_rows)} dataframes...")
     df_all = pd.concat(all_rows, ignore_index=True)
     df_all = df_all.sort_values("timestamp").reset_index(drop=True)
+    
+    # Cache the result
+    if use_cache:
+        _cache[root_path] = df_all
+        print(f"💾 Cached {len(df_all)} rows")
+    
     return df_all
-
 
 # ---------- helper: clean NaN ก่อนส่งออก JSON ----------
 
@@ -143,14 +171,65 @@ def df_to_records(df: pd.DataFrame) -> List[Dict]:
     return df_clean.to_dict(orient="records")
 
 
-# ---------- group functions ----------
+# ---------- NEW: Aggregation function ----------
+
+def aggregate_data(
+    df: pd.DataFrame, 
+    interval: Literal["1min", "5min", "15min", "30min", "1hour"]
+) -> pd.DataFrame:
+    """Aggregate sensor data by time interval"""
+    if df.empty:
+        return df
+    
+    # Map interval to pandas frequency string
+    freq_map = {
+        "1min": "1min",
+        "5min": "5min",
+        "15min": "15min",
+        "30min": "30min",
+        "1hour": "1h"
+    }
+    
+    freq = freq_map.get(interval, "5min")
+    
+    # Separate numeric and non-numeric columns
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    
+    # Keep timestamp and numeric columns only for aggregation
+    df_numeric = df[['timestamp'] + numeric_cols].copy()
+    
+    # Group by time interval and calculate mean (only numeric columns)
+    df_agg = df_numeric.set_index("timestamp").resample(freq).mean().reset_index()
+    
+    # Add back non-numeric columns (take first value in each group)
+    non_numeric_cols = df.select_dtypes(exclude=[np.number]).columns.tolist()
+    if non_numeric_cols:
+        # Remove 'timestamp' if it's in the list
+        non_numeric_cols = [col for col in non_numeric_cols if col != 'timestamp']
+        
+        if non_numeric_cols:
+            df_non_numeric = df[['timestamp'] + non_numeric_cols].copy()
+            df_non_numeric_agg = (
+                df_non_numeric.set_index("timestamp")
+                .resample(freq)
+                .first()
+                .reset_index()
+            )
+            # Merge numeric and non-numeric
+            df_agg = df_agg.merge(df_non_numeric_agg, on='timestamp', how='left')
+    
+    # Round numeric columns to reasonable precision
+    numeric_cols_in_result = df_agg.select_dtypes(include=[np.number]).columns
+    df_agg[numeric_cols_in_result] = df_agg[numeric_cols_in_result].round(2)
+    
+    return df_agg
 
 def group_hourly(df: pd.DataFrame, value_col: str) -> List[Dict]:
     if df.empty or value_col not in df.columns:
         return []
 
     grouped = (
-        df.groupby(df["timestamp"].dt.floor("h"))[value_col]  # ใช้ 'h' แทน 'H'
+        df.groupby(df["timestamp"].dt.floor("h"))[value_col]
         .mean()
         .reset_index()
         .rename(columns={"timestamp": "time", value_col: "value"})
@@ -176,8 +255,20 @@ def group_daily(df: pd.DataFrame, value_col: str) -> List[Dict]:
 
 # ---------- CO2 (WISE-4051) ----------
 
-def get_co2_all_raw() -> List[Dict]:
+def get_co2_all_raw(
+    limit: Optional[int] = None,
+    interval: Optional[Literal["raw", "1min", "5min", "15min", "30min", "1hour"]] = "raw"
+) -> List[Dict]:
     df = read_all_csv_under(WISE4051_ROOT)
+    
+    # Apply aggregation if requested
+    if interval != "raw":
+        df = aggregate_data(df, interval)
+    
+    # Apply limit (get last N records)
+    if limit is not None and limit > 0:
+        df = df.tail(limit)
+    
     return df_to_records(df)
 
 
@@ -223,3 +314,11 @@ def get_humid_all_hourly() -> List[Dict]:
 def get_humid_daily() -> List[Dict]:
     df = read_all_csv_under(WISE4012_ROOT)
     return group_daily(df, HUMID_COL)
+
+
+# ---------- Cache management ----------
+
+def clear_cache():
+    """Clear the data cache - call this when new data is added"""
+    global _cache
+    _cache = {}
