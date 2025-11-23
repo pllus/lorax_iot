@@ -1,5 +1,4 @@
 # Logs
-.env
 
 logs
 *.log
@@ -24,3 +23,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+
