@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   LineChart,
   Line,
@@ -14,6 +14,15 @@ function PlantDetail({ plant, onBack }) {
   const [sensorData, setSensorData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Chat messages (for popup)
+  const [messages, setMessages] = useState([
+    {
+      id: 1,
+      from: "bot",
+      text: `Hi, I'm your plant assistant. Chat is coming soon 🌱`,
+    },
+  ]);
 
   // State for filters
   const [selectedMetric, setSelectedMetric] = useState("carbon");
@@ -38,15 +47,18 @@ function PlantDetail({ plant, onBack }) {
     { value: "carbon", label: "Carbon (ppm)", color: "#22c55e" },
     { value: "temperature", label: "Air Temperature (°C)", color: "#ef4444" },
     { value: "humidity", label: "Air Humidity (%)", color: "#3b82f6" },
-    { value: "lightIntensity", label: "Light Intensity (Lux)", color: "#f59e0b" },
+    { value: "lightIntensity", label: "Light Intensity", color: "#f59e0b" },
+    { value: "lux", label: "Lux", color: "#fbbf24" },
+
     // New Electrical Metrics
     { value: "patchElectrode", label: "Patch Electrode (V)", color: "#8b5cf6" }, // AI_0
-    {
-      value: "glassElectrode",
-      label: "Glass Electrode pH (V)",
-      color: "#ec4899",
-    }, // AI_1
+    { value: "glassElectrode", label: "Glass Electrode pH (V)", color: "#ec4899" }, // AI_1
     { value: "pureElectrode", label: "Pure Electrode (V)", color: "#06b6d4" }, // AI_2
+
+    // Digital Inputs
+    { value: "DI_0", label: "DI_0", color: "#a855f7" },
+    { value: "DI_1", label: "DI_1", color: "#be185d" },
+    { value: "DI_2", label: "DI_2", color: "#4338ca" },
   ];
 
   const intervalOptions = [
@@ -121,16 +133,25 @@ function PlantDetail({ plant, onBack }) {
               month: "short",
               day: "numeric",
             }),
-            // Original CO2 Data
-            carbon: item["COM_1 Wd_0"] || 0,
-            temperature: (item["COM_1 Wd_1"] || 0) / 100,
-            humidity: (item["COM_1 Wd_2"] || 0) / 100,
-            lightIntensity: item["COM_1 Wd_4"] || 0,
 
-            // New Electrical Data (Converted)
+            // Original CO2 Data
+            carbon: item["COM_1 Wd_0"] ?? 0,
+            temperature: (item["COM_1 Wd_1"] ?? 0) / 100,
+            humidity: (item["COM_1 Wd_2"] ?? 0) / 100,
+            lightIntensity: item["COM_1 Wd_4"] ?? 0,
+
+            // Lux (adjust key to your API if needed)
+            lux: item.lux ?? item["COM_1 Wd_6"] ?? 0,
+
+            // New Electrical Data (Converted) – analog inputs
             patchElectrode: calculateVoltage(elecItem["AI_0 Val"]), // AI_0
             glassElectrode: calculateVoltage(elecItem["AI_1 Val"]), // AI_1
             pureElectrode: calculateVoltage(elecItem["AI_2 Val"]), // AI_2
+
+            // Digital Inputs (0/1)
+            DI_0: elecItem.DI_0 ?? 0,
+            DI_1: elecItem.DI_1 ?? 0,
+            DI_2: elecItem.DI_2 ?? 0,
           };
         });
 
@@ -155,7 +176,7 @@ function PlantDetail({ plant, onBack }) {
     // Refresh data every 30 seconds
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
-  }, [dataInterval]); // Re-fetch when interval changes
+  }, [dataInterval]);
 
   // Format timestamp for display
   const formatTime = (timestamp) => {
@@ -274,7 +295,9 @@ function PlantDetail({ plant, onBack }) {
   };
 
   // Format data for main chart
-  const currentMetric = metrics.find((m) => m.value === selectedMetric);
+  const currentMetric =
+    metrics.find((m) => m.value === selectedMetric) || metrics[0];
+
   const filteredData = filterData(sensorData);
 
   const chartData = filteredData.map((item) => ({
@@ -292,6 +315,7 @@ function PlantDetail({ plant, onBack }) {
     selectedCompareMetrics.length > 0
       ? selectedCompareMetrics
       : [metrics[0].value];
+
   const compareChartData = normalizeMetrics(
     compareFilteredData,
     activeCompareMetrics
@@ -371,7 +395,6 @@ function PlantDetail({ plant, onBack }) {
                 onClick={() => setIsChatOpen(true)}
                 className="relative w-10 h-10 rounded-full overflow-hidden border border-gray-300 bg-white shadow-sm flex items-center justify-center hover:shadow-md hover:scale-105 transition-transform"
               >
-                {/* Circle logo image (change src later) */}
                 <img
                   src={plant.chatAvatar || "/images/plant-chatbot-icon.png"}
                   alt="Plant chatbot"
@@ -820,9 +843,9 @@ function PlantDetail({ plant, onBack }) {
           {/* Info banner for compare */}
           <div className="bg-sky-50 border-l-4 border-sky-400 p-4 mb-6">
             <p className="text-sm text-sky-700">
-              <span className="font-semibold">Normalized view:</span> Metrics are
-              scaled from 0 - 1 based on their min/max values in the selected
-              time range.
+              <span className="font-semibold">Normalized view:</span> Metrics
+              are scaled from 0 - 1 based on their min/max values in the
+              selected time range.
             </p>
           </div>
 
@@ -852,7 +875,7 @@ function PlantDetail({ plant, onBack }) {
                   }}
                 />
                 <Tooltip
-                  content={({ active, payload, label }) => {
+                  content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       return (
                         <div className="bg-white p-3 border border-gray-300 rounded shadow">
@@ -867,7 +890,9 @@ function PlantDetail({ plant, onBack }) {
                               <p
                                 key={entry.dataKey}
                                 className="text-sm"
-                                style={{ color: metricDef?.color || "#111827" }}
+                                style={{
+                                  color: metricDef?.color || "#111827",
+                                }}
                               >
                                 {metricDef?.label || entry.dataKey}:{" "}
                                 {Number(entry.value).toFixed(3)}
@@ -902,111 +927,112 @@ function PlantDetail({ plant, onBack }) {
         </div>
       </div>
 
-    {/* Chatbot Popup */}
-    {isChatOpen && (
-      <div className="fixed inset-0 z-40 flex items-end justify-end pointer-events-none">
-        {/* Dim background */}
-        <div
-          className="absolute inset-0 bg-black/20 pointer-events-auto"
-          onClick={() => setIsChatOpen(false)}
-        />
+      {/* Chatbot Popup */}
+      {isChatOpen && (
+        <div className="fixed inset-0 z-40 flex items-end justify-end pointer-events-none">
+          {/* Dim background */}
+          <div
+            className="absolute inset-0 bg-black/20 pointer-events-auto"
+            onClick={() => setIsChatOpen(false)}
+          />
 
-        {/* Chat window */}
-        <div
-          className="
-            relative pointer-events-auto 
-            m-4 w-full 
-            max-w-md
-            min-w-[280px]
-            min-h-[260px]
-            h-[550px]
-            bg-white 
-            rounded-3xl
-            shadow-2xl 
-            border border-gray-200 
-            flex flex-col 
-            resize
-            overflow-hidden
-          "
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 bg-[#1f7a4a] rounded-t-3xl">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full overflow-hidden border border-white/60">
-                <img
-                  src={plant.chatAvatar || "/images/plant-chatbot-icon.png"}
-                  alt="Chatbot"
-                  className="w-full h-full object-cover"
-                />
+          {/* Chat window */}
+          <div
+            className="
+              relative pointer-events-auto 
+              m-4 w-full 
+              max-w-md
+              min-w-[280px]
+              min-h-[260px]
+              h-[550px]
+              bg-white 
+              rounded-3xl
+              shadow-2xl 
+              border border-gray-200 
+              flex flex-col 
+              resize
+              overflow-hidden
+            "
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 bg-[#1f7a4a] rounded-t-3xl">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full overflow-hidden border border-white/60">
+                  <img
+                    src={plant.chatAvatar || "/images/plant-chatbot-icon.png"}
+                    alt="Chatbot"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">
+                    {plant.name} Assistant
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-semibold text-white">
-                  {plant.name} Assistant
-                </p>
-              </div>
+
+              <button
+                onClick={() => setIsChatOpen(false)}
+                className="text-white/80 hover:text-white text-xl leading-none"
+              >
+                ×
+              </button>
             </div>
 
-            <button
-              onClick={() => setIsChatOpen(false)}
-              className="text-white/80 hover:text-white text-xl leading-none"
-            >
-              ×
-            </button>
-          </div>
+            {/* Messages area */}
+            <div className="flex-1 px-4 py-3 overflow-y-auto text-sm space-y-3">
+              {messages.map((msg) =>
+                msg.from === "bot" ? (
+                  <div
+                    key={msg.id}
+                    className="flex items-start gap-2 max-w-[85%]"
+                  >
+                    {/* Bot avatar for each bot message */}
+                    <div className="w-7 h-7 rounded-full overflow-hidden border border-emerald-500 shrink-0">
+                      <img
+                        src={
+                          plant.chatAvatar ||
+                          "/images/plant-chatbot-icon.png"
+                        }
+                        alt="Bot"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
 
-          {/* Messages area */}
-          <div className="flex-1 px-4 py-3 overflow-y-auto text-sm space-y-3">
-            {messages.map((msg) =>
-              msg.from === "bot" ? (
-                <div
-                  key={msg.id}
-                  className="flex items-start gap-2 max-w-[85%]"
+                    <div className="bg-emerald-50 text-emerald-900 px-3 py-2 rounded-lg rounded-bl-none">
+                      {msg.text}
+                    </div>
+                  </div>
+                ) : (
+                  <div key={msg.id} className="flex justify-end">
+                    <div className="bg-gray-100 text-gray-900 px-3 py-2 rounded-lg rounded-br-none max-w-[85%]">
+                      {msg.text}
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+
+            {/* Input area (still placeholder) */}
+            <div className="border-t px-3 py-2 bg-gray-50 rounded-b-3xl">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Chat coming soon…"
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 text-gray-500"
+                  disabled
+                />
+                <button
+                  className="px-3 py-2 text-xs rounded-lg bg-emerald-500 text-white opacity-70 cursor-not-allowed"
+                  disabled
                 >
-                  {/* Bot avatar for each bot message */}
-                  <div className="w-7 h-7 rounded-full overflow-hidden border border-emerald-500 shrink-0">
-                    <img
-                      src={plant.chatAvatar || "/images/plant-chatbot-icon.png"}
-                      alt="Bot"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-
-                  <div className="bg-emerald-50 text-emerald-900 px-3 py-2 rounded-lg rounded-bl-none">
-                    {msg.text}
-                  </div>
-                </div>
-              ) : (
-                <div key={msg.id} className="flex justify-end">
-                  <div className="bg-gray-100 text-gray-900 px-3 py-2 rounded-lg rounded-br-none max-w-[85%]">
-                    {msg.text}
-                  </div>
-                </div>
-              )
-            )}
-          </div>
-
-          {/* Input area (still placeholder) */}
-          <div className="border-t px-3 py-2 bg-gray-50 rounded-b-3xl">
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                placeholder="Chat coming soon…"
-                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 text-gray-500"
-                disabled
-              />
-              <button
-                className="px-3 py-2 text-xs rounded-lg bg-emerald-500 text-white opacity-70 cursor-not-allowed"
-                disabled
-              >
-                Send
-              </button>
+                  Send
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    )}
-
-
+      )}
     </div>
   );
 }
