@@ -51,7 +51,7 @@ function PlantDetail({ plant, onBack }) {
     { value: "lux", label: "Lux", color: "#fbbf24" },
 
     // New Electrical Metrics
-    { value: "patchElectrode", label: "Patch Electrode (V)", color: "#8b5cf6" }, // AI_0
+    { value: "padsElectrode", label: "Pads Electrode (V)", color: "#8b5cf6" }, // AI_0
     { value: "glassElectrode", label: "Glass Electrode pH (V)", color: "#ec4899" }, // AI_1
     { value: "pureElectrode", label: "Pure Electrode (V)", color: "#06b6d4" }, // AI_2
 
@@ -144,7 +144,7 @@ function PlantDetail({ plant, onBack }) {
             lux: item.lux ?? item["COM_1 Wd_6"] ?? 0,
 
             // New Electrical Data (Converted) – analog inputs
-            patchElectrode: calculateVoltage(elecItem["AI_0 Val"]), // AI_0
+            padsElectrode: calculateVoltage(elecItem["AI_0 Val"]), // AI_0
             glassElectrode: calculateVoltage(elecItem["AI_1 Val"]), // AI_1
             pureElectrode: calculateVoltage(elecItem["AI_2 Val"]), // AI_2
 
@@ -462,8 +462,8 @@ function PlantDetail({ plant, onBack }) {
 
                   {/* --- Electrode Data Matching Format --- */}
                   <p className="text-gray-700">
-                    <span className="font-semibold">Patch:</span>{" "}
-                    {latestData.patchElectrode.toFixed(4)} V
+                    <span className="font-semibold">Pads:</span>{" "}
+                    {latestData.padsElectrode.toFixed(4)} V
                   </p>
                   <p className="text-gray-700">
                     <span className="font-semibold">Glass pH:</span>{" "}
