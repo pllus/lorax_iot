@@ -114,57 +114,63 @@ export default function MapPage() {
   if (error) return <div>Error: {error}</div>;
 
   // ---- Mock Heatmap Points (each point has its own description) ----
-  const heatPoints = [
-    {
-      lat: center[0] + 0.0003,
-      lng: center[1] + 0.0003,
-      intensity: 0.9,
-      text: "This zone shows high activity from multiple plant sensors and is close to the main plant cluster.",
-    },
-    {
-      lat: center[0] - 0.0002,
-      lng: center[1] + 0.0001,
-      intensity: 0.7,
-      text: "This area has relatively high signal, likely where plants are growing very well.",
-    },
-    {
-      lat: center[0] + 0.0001,
-      lng: center[1] - 0.00025,
-      intensity: 0.8,
-      text: "This zone has consistently high values and is useful as a reference area to compare with other points.",
-    },
-    {
-      lat: center[0] - 0.00025,
-      lng: center[1] - 0.00015,
-      intensity: 0.6,
-      text: "This area has medium intensity and may be a transition zone between dense and sparse regions.",
-    },
-  ];
 
-  // ---- Mock Sensors Data ----
-  const sensors = [
-    {
-      lat: center[0] + 0.0004,
-      lng: center[1] + 0.00015,
-      name: "Sensor A - CO₂ & Temp",
-      description:
-        "Sensor A measures CO₂ and temperature in the upper canopy area to monitor the impact on plant respiration.",
-    },
-    {
-      lat: center[0] - 0.00035,
-      lng: center[1] - 0.0001,
-      name: "Sensor B - Soil Moisture",
-      description:
-        "Sensor B is buried in the soil to measure soil moisture for the experimental plant group on the east side.",
-    },
-    {
-      lat: center[0] + 0.0001,
-      lng: center[1] - 0.00035,
-      name: "Sensor C - Biosignal Clamp",
-      description:
-        "Sensor C is clamped to plant branches to capture plant bioelectric signals for the Plant Health & Pollution Detection feature.",
-    },
-  ];
+// ---- Heatmap Points ----
+const heatPoints = [
+  {
+    lat: 13.845183806267956,
+    lng: 100.57074430044865,
+    intensity: 0.2,
+    text: "This zone shows low carbon intensity due to Jimmy",
+  },
+  {
+    lat: 13.851507,
+    lng: 100.575329,
+    intensity: 0.5,
+    text: "This zone shows medium carbon intensity",
+  },
+  {
+    lat: 13.85125834581618,
+    lng: 100.57120353666488,
+    intensity: 0.85,
+    text: "This zone shows high carbon intensity due to no Jimmy",
+  },
+];
+
+// ---- Mock Sensors Data with latest readings ----
+const sensors = [
+  {
+    lat: 13.845183806267956, 
+    lng: 100.57074430044865,
+    name: "Sensor set A",
+    co2: 450,           // low
+    estimatedPPM: 720.0, //AI here
+    temperature: 29.3,
+    humidity: 57.0,
+    lightIntensity: 720,
+  },
+  {
+    lat: 13.851507,
+    lng: 100.575329,
+    name: "Sensor set C",
+    co2: 640,           // medium
+    estimatedPPM: 780.0,
+    temperature: 30.8,  // ระหว่าง 29.3 กับ 32.1
+    humidity: 52.0,     // ระหว่าง 57 กับ 48.5
+    lightIntensity: 790, // ระหว่าง 720 กับ 860
+  },
+  {
+    lat: 13.85125834581618,
+    lng: 100.57120353666488,
+    name: "Sensor set B",
+    co2: 865.4,         // high
+    estimatedPPM: 910.0,
+    temperature: 32.1,
+    humidity: 48.5,
+    lightIntensity: 860,
+  },
+];
+
 
   const showPlants = displayMode === "plants";
   const showHeatmap = displayMode === "heatmap";
