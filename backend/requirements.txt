@@ -3,5 +3,6 @@ uvicorn[standard]
 python-dotenv
 dropbox
 pandas
+motor
 openai
 requests
