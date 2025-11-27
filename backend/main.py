@@ -1,7 +1,8 @@
 # app/main.py
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI
+from fastapi import FastAPI,HTTPException
+from backend.mongo.main import mongodb
 
 import threading
 import time
@@ -81,21 +82,44 @@ app.include_router(api_router)
 def health():
     return {"status": "ok"}
 
-
-# ────────────────────────────────────────────────────────────
-# DB Removed — Dummy Endpoints
-# ────────────────────────────────────────────────────────────
 @app.get("/db-info")
-def no_db():
-    return {
-        "success": False,
-        "message": "MongoDB is disabled in this setup."
-    }
-
+async def get_database_info():
+    try:
+        database = await mongodb.get_database()
+        collections = await database.list_collection_names()
+        return {
+            "database_name": "aiot",
+            "collections": collections,
+            "collections_count": len(collections)
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error getting database info: {str(e)}"
+        )
 
 @app.get("/plants/all")
-def no_plants():
-    return {
-        "success": False,
-        "message": "Plant database is not enabled in this setup."
-    }
+async def get_all_plants():
+    """Get all plants from database"""
+    try:
+        database = await mongodb.get_database()
+        plants_collection = database["plant"]
+        
+        plants = []
+        async for plant in plants_collection.find():
+            # Convert ObjectId to string
+            plant["id"] = str(plant.pop("_id"))
+            plants.append(plant)
+        
+        return {
+            "success": True,
+            "count": len(plants),
+            "plants": plants
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error getting plants: {str(e)}"
+        )
+
+

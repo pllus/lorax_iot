@@ -66,7 +66,7 @@ function HeatmapLayer({ points }) {
     const arr = points.map((p) => [p.lat, p.lng, p.intensity]);
 
     const heatLayer = L.heatLayer(arr, {
-      radius: 50,
+      radius: 25,
       blur: 15,
       maxZoom: 18,
     });
@@ -116,30 +116,53 @@ export default function MapPage() {
   // ---- Mock Heatmap Points (each point has its own description) ----
   const heatPoints = [
     {
-      lat: 13.845183806267956,
-      lng: 100.57074430044865,
-      intensity: 0.2,
-      text: "This zone shows low carbon intensity due to Jimmy",
+      lat: center[0] + 0.0003,
+      lng: center[1] + 0.0003,
+      intensity: 0.9,
+      text: "This zone shows high activity from multiple plant sensors and is close to the main plant cluster.",
     },
     {
-      lat: 13.85125834581618,
-      lng: 100.57120353666488,
-      intensity: 0.85,
-      text: "This zone shows high carbon intensity",
+      lat: center[0] - 0.0002,
+      lng: center[1] + 0.0001,
+      intensity: 0.7,
+      text: "This area has relatively high signal, likely where plants are growing very well.",
+    },
+    {
+      lat: center[0] + 0.0001,
+      lng: center[1] - 0.00025,
+      intensity: 0.8,
+      text: "This zone has consistently high values and is useful as a reference area to compare with other points.",
+    },
+    {
+      lat: center[0] - 0.00025,
+      lng: center[1] - 0.00015,
+      intensity: 0.6,
+      text: "This area has medium intensity and may be a transition zone between dense and sparse regions.",
     },
   ];
 
-  // ---- Mock Sensors Data with latest readings ----
+  // ---- Mock Sensors Data ----
   const sensors = [
     {
-      lat: 13.845183806267956,
-      lng: 100.57074430044865,
-      name: "Sensor set A",
-      carbon: 688.5,
-      estimatedPPM: 720.0,   // <-- เพิ่มอันนี้
-      temperature: 29.3,
-      humidity: 57.0,
-      lightIntensity: 720,
+      lat: center[0] + 0.0004,
+      lng: center[1] + 0.00015,
+      name: "Sensor A - CO₂ & Temp",
+      description:
+        "Sensor A measures CO₂ and temperature in the upper canopy area to monitor the impact on plant respiration.",
+    },
+    {
+      lat: center[0] - 0.00035,
+      lng: center[1] - 0.0001,
+      name: "Sensor B - Soil Moisture",
+      description:
+        "Sensor B is buried in the soil to measure soil moisture for the experimental plant group on the east side.",
+    },
+    {
+      lat: center[0] + 0.0001,
+      lng: center[1] - 0.00035,
+      name: "Sensor C - Biosignal Clamp",
+      description:
+        "Sensor C is clamped to plant branches to capture plant bioelectric signals for the Plant Health & Pollution Detection feature.",
     },
   ];
 
@@ -319,7 +342,7 @@ export default function MapPage() {
             </>
           )}
 
-          {/* Sensors (mock data) – popup styled like the screenshot */}
+          {/* Sensors (mock data) */}
           {showSensors &&
             sensors.map((s, idx) => (
               <Marker
@@ -328,20 +351,11 @@ export default function MapPage() {
                 icon={sensorIcon}
               >
                 <Popup>
-                  <div style={{ fontSize: "14px", color: "#111827", lineHeight: 1.5 }}>
-                    <strong style={{ fontSize: "15px" }}>{s.name}</strong>
-                    <hr style={{ margin: "8px 0 8px" }} />
-
-                    <strong>Latest Sensor Readings:</strong>
-                    <hr style={{ margin: "4px 0 8px" }} />
-
-                    <div>
-                      <div><strong>Carbon:</strong> {s.carbon} ppm</div>
-                      <div><strong>Estimated Carbon:</strong> {s.estimatedPPM} ppm</div>
-                      <div><strong>Temperature:</strong> {s.temperature}°C</div>
-                      <div><strong>Humidity:</strong> {s.humidity}%</div>
-                      <div><strong>Light Intensity:</strong> {s.lightIntensity} lux</div>
-                    </div>
+                  <div>
+                    <strong>{s.name}</strong>
+                    <br />
+                    <br />
+                    <span>{s.description}</span>
                   </div>
                 </Popup>
               </Marker>
