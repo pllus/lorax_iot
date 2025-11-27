@@ -8,16 +8,18 @@ improvement and plant health management.
 
   const mentors = [
     {
-      name: "Prof. Dr. ______ ______",
-      role: "Primary Project Mentor",
-      department: "Department of Computer Engineering, Kasetsart University",
-      email: "professor1@ku.ac.th",
+      name: "Assoc. Prof. Dr. ANAN PHONPHOEM",
+      // role: "Primary Project Mentor",
+      department: "Department of Computer Engineering",
+      faculty: "Faculty of Engineering, Kasetsart University",
+      // email: "professor1@ku.ac.th",
       img: "/prof1.jpg", // put image in /public/
     },
     {
-      name: "Asst. Prof. Dr. ______ ______",
-      role: "Co-Mentor",
-      department: "Department of ________, Kasetsart University",
+      name: "Assoc. Prof. Dr. WANNARAT PHONPHOEM",
+      // role: "Co-Mentor",
+      department: "Department of Biochemistry",
+      faculty: "Faculty of Science, Kasetsart University",
       email: "professor2@ku.ac.th",
       img: "/prof2.jpg",
     },
@@ -25,28 +27,28 @@ improvement and plant health management.
 
   const members = [
     {
-      name: "Pacharamon Putrasreni",
-      role: "Frontend / UI Designer",
+      name: "NARAN WONGVUTTHISAROJ",
+      // role: "Frontend / UI Designer",
       img: "/member1.jpg",
     },
     {
-      name: "Member 2 Name",
-      role: "Backend Developer",
+      name: "NITISARATH PHUTTIPHAPHONG",
+      // role: "Backend Developer",
       img: "/member2.jpg",
     },
     {
-      name: "Member 3 Name",
-      role: "IoT / Hardware",
+      name: "PACHARAMON PUTRASRENI",
+      // role: "",
       img: "/member3.jpg",
     },
     {
-      name: "Member 4 Name",
-      role: "Data Analyst",
+      name: "THAMMAPAT RATTANATAIPOP",
+      // role: "Data Analyst",
       img: "/member4.jpg",
     },
     {
-      name: "Member 5 Name",
-      role: "Research / Documentation",
+      name: "KONGPHOP PHAIROH",
+      // role: "Research / Documentation",
       img: "/member5.jpg",
     },
   ];
@@ -68,10 +70,10 @@ improvement and plant health management.
         </p>
       </section>
 
-      {/* Professor Mentors */}
+      {/* Professor  */}
       <section className="space-y-4">
         <h2 className="text-lg font-semibold text-gray-900">
-          Professor Mentors
+          Advisors
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -92,9 +94,10 @@ improvement and plant health management.
                 </p>
                 <p className="text-sm text-gray-700">{prof.role}</p>
                 <p className="text-xs text-gray-500">{prof.department}</p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500">{prof.faculty}</p>
+                {/* <p className="text-xs text-gray-500">
                   Contact: {prof.email}
-                </p>
+                </p> */}
               </div>
             </div>
           ))}

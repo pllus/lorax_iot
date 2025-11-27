@@ -8,6 +8,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  ReferenceArea,
 } from "recharts";
 
 function PlantDetail({ plant, onBack }) {
@@ -44,7 +45,7 @@ function PlantDetail({ plant, onBack }) {
 
   // Updated metrics list with new Electrode data
   const metrics = [
-    { value: "carbon", label: "Carbon (ppm)", color: "#22c55e" },
+    { value: "carbon", label: "CO2 (ppm)", color: "#22c55e" },
     { value: "temperature", label: "Air Temperature (°C)", color: "#ef4444" },
     { value: "humidity", label: "Air Humidity (%)", color: "#3b82f6" },
     { value: "lightIntensity", label: "Light Intensity", color: "#f59e0b" },
@@ -52,7 +53,7 @@ function PlantDetail({ plant, onBack }) {
 
     // New Electrical Metrics
     { value: "padsElectrode", label: "Pads Electrode (V)", color: "#8b5cf6" }, // AI_0
-    { value: "glassElectrode", label: "Glass Electrode pH (V)", color: "#ec4899" }, // AI_1
+    { value: "glassElectrode", label: "AgCl Electrode (V)", color: "#ec4899" }, // AI_1
     { value: "pureElectrode", label: "Pure Electrode (V)", color: "#06b6d4" }, // AI_2
 
     // Digital Inputs
@@ -316,10 +317,84 @@ function PlantDetail({ plant, onBack }) {
       ? selectedCompareMetrics
       : [metrics[0].value];
 
-  const compareChartData = normalizeMetrics(
+  // Base normalized data
+  const compareChartDataBase = normalizeMetrics(
     compareFilteredData,
     activeCompareMetrics
   );
+
+  // Attach light on/off state to each point
+  const compareChartData = compareChartDataBase.map((row, idx) => {
+    const src = compareFilteredData[idx];
+    const lightOn = (src?.lightIntensity ?? 0) > 0; // adjust threshold if needed
+    return { ...row, lightOn };
+  });
+
+  //  background segments for glass electrode based on light + stress ---
+  let glassBackgroundSegments = [];
+
+  if (
+    activeCompareMetrics.includes("glassElectrode") &&
+    compareChartData.length > 1
+  ) {
+    let startIndex = 0;
+    let currentState = compareChartData[0].lightOn ? "on" : "off";
+
+    for (let i = 1; i < compareChartData.length; i++) {
+      const state = compareChartData[i].lightOn ? "on" : "off";
+      if (state !== currentState) {
+        glassBackgroundSegments.push({
+          start: compareChartData[startIndex],
+          end: compareChartData[i - 1],
+          state: currentState,
+        });
+        startIndex = i;
+        currentState = state;
+      }
+    }
+
+    glassBackgroundSegments.push({
+      start: compareChartData[startIndex],
+      end: compareChartData[compareChartData.length - 1],
+      state: currentState,
+    });
+
+    // mark "stress" when AgCl electrode drops strongly while light is ON
+    glassBackgroundSegments = glassBackgroundSegments.map((seg) => {
+      if (seg.state !== "on") return seg;
+
+      const startIdx = compareChartData.findIndex(
+        (r) => r.fullTimestamp === seg.start.fullTimestamp
+      );
+      const endIdx = compareChartData.findIndex(
+        (r) => r.fullTimestamp === seg.end.fullTimestamp
+      );
+
+      // use RAW glassElectrode voltage (not normalized)
+      const rawSlice = compareFilteredData.slice(startIdx, endIdx + 1);
+      const vals = rawSlice
+        .map((d) => d.glassElectrode)
+        .filter((v) => typeof v === "number" && !isNaN(v));
+
+      if (!vals.length) return seg;
+
+      const first = vals[0];
+      const last = vals[vals.length - 1];
+      const max = Math.max(...vals);
+      const min = Math.min(...vals);
+
+      const drop = first - last; // positive if going downward
+      const range = max - min;
+      const dropFraction = range > 0 ? drop / range : 0;
+
+      // heuristics – tweak if you want:
+      //  - at least some movement (range > 0.02 V)
+      //  - more than half of that movement is a net downward trend
+      const isStress = range > 0.02 && dropFraction > 0.5;
+
+      return { ...seg, isStress };
+    });
+  }
 
   // Get latest value
   const latestData =
@@ -393,16 +468,16 @@ function PlantDetail({ plant, onBack }) {
               <button
                 type="button"
                 onClick={() => setIsChatOpen(true)}
-                className="relative w-10 h-10 rounded-full overflow-hidden border border-gray-300 bg-white shadow-sm flex items-center justify-center hover:shadow-md hover:scale-105 transition-transform"
+                className="relative w-10 h-10 rounded-full overflow-hidden bg-white shadow-sm flex items-center justify-center hover:shadow-md hover:scale-105 transition-transform"
               >
                 <img
-                  src={plant.chatAvatar || "/images/plant-chatbot-icon.png"}
+                  src={plant.chatAvatar || "/public/images/icon.png"}
                   alt="Plant chatbot"
                   className="w-full h-full object-cover"
                 />
-                <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-white text-[10px] px-1.5 py-[1px] rounded-full shadow">
+                {/* <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-white text-[10px] px-1.5 py-[1px] rounded-full shadow">
                   bot
-                </span>
+                </span> */}
               </button>
             </div>
 
@@ -442,7 +517,7 @@ function PlantDetail({ plant, onBack }) {
                     Latest Sensor Readings:
                   </p>
                   <p className="text-gray-700">
-                    <span className="font-semibold">Carbon:</span>{" "}
+                    <span className="font-semibold">CO2:</span>{" "}
                     {latestData.carbon} ppm
                   </p>
                   <p className="text-gray-700">
@@ -466,7 +541,7 @@ function PlantDetail({ plant, onBack }) {
                     {latestData.padsElectrode.toFixed(4)} V
                   </p>
                   <p className="text-gray-700">
-                    <span className="font-semibold">Glass pH:</span>{" "}
+                    <span className="font-semibold">AgCl Electrode:</span>{" "}
                     {latestData.glassElectrode.toFixed(4)} V
                   </p>
                   <p className="text-gray-700">
@@ -517,7 +592,7 @@ function PlantDetail({ plant, onBack }) {
               {/* Data Interval Selector */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Data Detail
+                  Data Interval
                 </label>
                 <select
                   value={dataInterval}
@@ -729,7 +804,7 @@ function PlantDetail({ plant, onBack }) {
         {/* Compare Metrics (Normalized) */}
         <div className="mt-10 border-t pt-8">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Compare Metrics (0–1)</h2>
+            <h2 className="text-2xl font-bold">Compare Metrics </h2>
 
             <div className="flex gap-4 flex-wrap">
               {/* Date Selector (reuse same state) */}
@@ -754,7 +829,7 @@ function PlantDetail({ plant, onBack }) {
               {/* Data Interval Selector (reuse) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Data Detail
+                  Data Interval
                 </label>
                 <select
                   value={dataInterval}
@@ -853,6 +928,37 @@ function PlantDetail({ plant, onBack }) {
             <ResponsiveContainer width="100%" height={400}>
               <LineChart data={compareChartData}>
                 <CartesianGrid strokeDasharray="3 3" />
+
+                {glassBackgroundSegments.map((seg, idx) => (
+                  <ReferenceArea
+                    key={idx}
+                    x1={
+                      selectedDate === "all"
+                        ? seg.start.dateTime
+                        : seg.start.time
+                    }
+                    x2={
+                      selectedDate === "all" ? seg.end.dateTime : seg.end.time
+                    }
+                    y1={0}
+                    y2={1}
+                    fill={
+                      seg.state === "off"
+                        ? "rgba(156,163,175,0.18)" // gray: light off
+                        : seg.isStress
+                        ? "rgba(239,68,68,0.18)" // red: light on & stress
+                        : "rgba(250,204,21,0.18)" // yellow: light on
+                    }
+                    stroke={null}
+                    label={
+                      seg.state === "off"
+                        ? "Light off"
+                        : seg.isStress
+                        ? "Light on & stress"
+                        : "Light on"
+                    }
+                  />
+                ))}
                 <XAxis
                   dataKey={selectedDate === "all" ? "dateTime" : "time"}
                   label={{
@@ -957,9 +1063,9 @@ function PlantDetail({ plant, onBack }) {
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 bg-[#1f7a4a] rounded-t-3xl">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full overflow-hidden border border-white/60">
+                <div className="w-8 h-8 rounded-full overflow-hidden">
                   <img
-                    src={plant.chatAvatar || "/images/plant-chatbot-icon.png"}
+                    src={plant.chatAvatar || "/images/icon.png"}
                     alt="Chatbot"
                     className="w-full h-full object-cover"
                   />
@@ -988,16 +1094,15 @@ function PlantDetail({ plant, onBack }) {
                     className="flex items-start gap-2 max-w-[85%]"
                   >
                     {/* Bot avatar for each bot message */}
-                    <div className="w-7 h-7 rounded-full overflow-hidden border border-emerald-500 shrink-0">
+                    {/* <div className="w-7 h-7 rounded-full overflow-hidden">
                       <img
                         src={
-                          plant.chatAvatar ||
-                          "/images/plant-chatbot-icon.png"
+                          plant.chatAvatar || "/images/icon.png"
                         }
                         alt="Bot"
                         className="w-full h-full object-cover"
                       />
-                    </div>
+                    </div> */}
 
                     <div className="bg-emerald-50 text-emerald-900 px-3 py-2 rounded-lg rounded-bl-none">
                       {msg.text}

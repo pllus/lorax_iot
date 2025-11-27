@@ -5,21 +5,21 @@ function PlantStats({ onNavigateToPlant }) {
     {
       id: 1,
       name: "Jimmy",
-      species: "Mulberry tree",
-      status: "🔴 offline (last connected 11/22/2025)",
+      species: "Morus Rubra",
+      status: "🟢 Online (Last Connected - Today)",
       health: "🟢 Healthy",
-      water: "🟡 (last watered 11/22/2025)",
-      image: "https://images.unsplash.com/photo-1466781783364-36c955e42a7f?w=400&h=400&fit=crop"
+      water: "🟡",
+      image: "/public/images/mulberry.jpg",
     },
-    {
-      id: 2,
-      name: "Plant 2",
-      species: "Unknown",
-      status: "",
-      health: "",
-      water: "Green, Yellow, Red [last watered]",
-      image: "https://images.unsplash.com/photo-1459156212016-c812468e2115?w=400&h=400&fit=crop"
-    },
+    // {
+    //   id: 2,
+    //   name: "Plant 2",
+    //   species: "Unknown",
+    //   status: "",
+    //   health: "",
+    //   water: "Green, Yellow, Red [last watered]",
+    //   image: "https://images.unsplash.com/photo-1459156212016-c812468e2115?w=400&h=400&fit=crop"
+    // },
   ]);
 
   return (
@@ -29,7 +29,7 @@ function PlantStats({ onNavigateToPlant }) {
         <h1 className="text-2xl font-bold text-gray-900 mb-1">
           View Individual Plant Statistics
         </h1>
-        <p className="text-gray-500">{plants.length} Plants Available</p>
+        <p className="text-gray-500">{plants.length} Plant(s) Available</p>
       </div>
 
       {/* Plants List */}
