@@ -217,7 +217,7 @@ const sensors = [
           style={{
             display: "flex",
             gap: "8px",
-            background: "#e5edff",
+            background: "#dcfce7",
             padding: "4px",
             borderRadius: "999px",
           }}
@@ -231,7 +231,7 @@ const sensors = [
               cursor: "pointer",
               fontSize: "13px",
               backgroundColor:
-                displayMode === "plants" ? "#1d4ed8" : "transparent",
+                displayMode === "plants" ? "#16a34a" : "transparent",
               color: displayMode === "plants" ? "#ffffff" : "#1e293b",
               minWidth: "90px",
             }}
@@ -247,7 +247,7 @@ const sensors = [
               cursor: "pointer",
               fontSize: "13px",
               backgroundColor:
-                displayMode === "heatmap" ? "#1d4ed8" : "transparent",
+                displayMode === "heatmap" ? "#16a34a" : "transparent",
               color: displayMode === "heatmap" ? "#ffffff" : "#1e293b",
               minWidth: "90px",
             }}
@@ -263,7 +263,7 @@ const sensors = [
               cursor: "pointer",
               fontSize: "13px",
               backgroundColor:
-                displayMode === "sensors" ? "#1d4ed8" : "transparent",
+                displayMode === "sensors" ? "#16a34a" : "transparent",
               color: displayMode === "sensors" ? "#ffffff" : "#1e293b",
               minWidth: "90px",
             }}
