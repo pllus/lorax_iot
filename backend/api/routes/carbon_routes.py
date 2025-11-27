@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, HTTPException
 from typing import Optional, Literal
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
 from backend.dropbox import service as dropbox_service
+from backend.api.routes.predict import get_carbon_prediction 
 
 
 router = APIRouter(prefix="/carbon", tags=["carbon"])
@@ -44,6 +45,19 @@ async def co2_all_raw(
         interval
     )
     return data
+@router.get("/co2/predict")
+async def co2_predict():
+    # 1. Use asyncio.to_thread() to run the synchronous function in a thread pool.
+    #    This ensures the main FastAPI event loop is NOT blocked.
+    result = await asyncio.to_thread(get_carbon_prediction)
+    
+    # 2. Check for errors returned by the service function
+    if "error" in result:
+        # Use HTTPException for standardized error reporting
+        raise HTTPException(status_code=500, detail=result["error"])
+        
+    # 3. Return the structured result
+    return result
 
 @router.get("/co2/hourly", summary="CO2 hourly average from WISE-4051")
 def co2_hourly():
