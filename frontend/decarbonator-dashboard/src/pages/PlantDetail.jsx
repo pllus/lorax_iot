@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   LineChart,
   Line,
@@ -16,14 +16,21 @@ function PlantDetail({ plant, onBack }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Chat messages (for popup)
+  // Chat messages (popup)
   const [messages, setMessages] = useState([
     {
       id: 1,
       from: "bot",
-      text: `Hi, I'm your plant assistant. Chat is coming soon 🌱`,
+      text: `Hi, I'm your plant assistant. Feel free to ask me about CO₂ levels, environmental conditions, and more!`,
     },
   ]);
+
+  // Chatbot API integration state
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState(null);
+  // LocalStorage key (per plant)
+  const storageKey = `plant-chat-${plant.id || plant.name || "default"}`;
 
   // State for filters
   const [selectedMetric, setSelectedMetric] = useState("carbon");
@@ -42,6 +49,56 @@ function PlantDetail({ plant, onBack }) {
 
   // Chatbot popup state
   const [isChatOpen, setIsChatOpen] = useState(false);
+  // Chat window size + custom resize
+  const [chatSize, setChatSize] = useState({ width: 400, height: 550 });
+  const [resizing, setResizing] = useState(false);
+  const resizeStartRef = useRef({
+    mouseX: 0,
+    mouseY: 0,
+    width: 400,
+    height: 550,
+  });
+
+  const startResize = (e) => {
+  e.preventDefault();
+  setResizing(true);
+  resizeStartRef.current = {
+    mouseX: e.clientX,
+    mouseY: e.clientY,
+    width: chatSize.width,
+    height: chatSize.height,
+  };
+};
+
+useEffect(() => {
+  if (!resizing) return;
+
+  const handleMove = (e) => {
+    const dx = resizeStartRef.current.mouseX - e.clientX; // drag left => wider
+    const dy = resizeStartRef.current.mouseY - e.clientY; // drag up => taller
+
+    setChatSize((prev) => ({
+      width: Math.min(
+        500,
+        Math.max(280, resizeStartRef.current.width + dx)
+      ),
+      height: Math.min(
+        700,
+        Math.max(260, resizeStartRef.current.height + dy)
+      ),
+    }));
+  };
+
+  const handleUp = () => setResizing(false);
+
+  window.addEventListener("mousemove", handleMove);
+  window.addEventListener("mouseup", handleUp);
+
+  return () => {
+    window.removeEventListener("mousemove", handleMove);
+    window.removeEventListener("mouseup", handleUp);
+  };
+}, [resizing, chatSize.width, chatSize.height]);
 
   // Updated metrics list with new Electrode data
   const metrics = [
@@ -76,6 +133,77 @@ function PlantDetail({ plant, onBack }) {
     if (raw === undefined || raw === null) return 0;
     return (raw - 32768) * (20 / 65535);
   };
+
+  const fetchCarbonStatusFromApi = async () => {
+  try {
+    setChatLoading(true);
+    setChatError(null);
+
+    // Build URL with latest sensor data as query params (backend can use or ignore)
+    const baseUrl = "http://127.0.0.1:8000/chat/carbon-status";
+    const url = new URL(baseUrl);
+
+    if (latestData) {
+      url.searchParams.set("co2", latestData.carbon ?? 0);
+      url.searchParams.set("temperature", latestData.temperature ?? 0);
+      url.searchParams.set("humidity", latestData.humidity ?? 0);
+    }
+
+    const res = await fetch(url.toString(), {
+      method: "GET",
+    });
+
+    if (!res.ok) {
+      throw new Error(`API error: ${res.status} ${res.statusText}`);
+    }
+
+    const data = await res.json(); // expected: { reply: "..." }
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: prev.length + 1,
+        from: "bot",
+        text: data.reply || "No reply from assistant.",
+      },
+    ]);
+  } catch (err) {
+    console.error(err);
+    setChatError(err.message || "Failed to fetch chat reply.");
+  } finally {
+    setChatLoading(false);
+  }
+};
+
+// Load chat history when component mounts / plant changes
+useEffect(() => {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed.messages) && parsed.messages.length > 0) {
+        setMessages(parsed.messages);
+      }
+      if (typeof parsed.chatInput === "string") {
+        setChatInput(parsed.chatInput);
+      }
+    }
+  } catch (e) {
+    console.error("Failed to load chat from storage", e);
+  }
+}, [storageKey]);
+
+// Save chat history whenever messages or input change
+useEffect(() => {
+  try {
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify({ messages, chatInput })
+    );
+  } catch (e) {
+    console.error("Failed to save chat to storage", e);
+  }
+}, [messages, chatInput, storageKey]);
 
   // Fetch data from API
   useEffect(() => {
@@ -199,6 +327,71 @@ function PlantDetail({ plant, onBack }) {
       hour12: false,
     });
   };
+
+  const sendChatMessage = async () => {
+  const trimmed = chatInput.trim();
+  if (!trimmed) return;
+
+  // Clear input immediately 
+  // setChatInput("");
+  // setChatError(null);
+
+  // 1. Append user message to chat
+  setMessages((prev) => [
+    ...prev,
+    {
+      id: prev.length + 1,
+      from: "user",
+      text: trimmed,
+    },
+  ]);
+
+  // 2. Call backend for bot reply
+  try {
+    setChatLoading(true);
+
+    // Adjust URL/method to match your FastAPI route
+    const res = await fetch("http://127.0.0.1:8000/chat/carbon-status", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        // main prompt from user
+        prompt: trimmed,
+
+        // optional: pass latest sensor context to backend
+        co2: latestData?.carbon ?? null,
+        temperature: latestData?.temperature ?? null,
+        humidity: latestData?.humidity ?? null,
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`API error: ${res.status} ${res.statusText}`);
+    }
+
+    const data = await res.json(); // expected: { reply: "..." }
+
+    // 3. Append bot reply
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: prev.length + 1,
+        from: "bot",
+        text:
+          data.reply ||
+          "ฉันยังไม่ได้รับคำตอบจากเซิร์ฟเวอร์ ลองใหม่อีกครั้งได้นะ 🌱",
+      },
+    ]);
+  } catch (err) {
+    console.error(err);
+    setChatError(err.message || "Failed to fetch reply from assistant.");
+  } finally {
+    setChatLoading(false);
+  }
+};
+
 
   // Get color for date
   const dateColors = [
@@ -1044,22 +1237,29 @@ function PlantDetail({ plant, onBack }) {
 
           {/* Chat window */}
           <div
-            className="
-              relative pointer-events-auto 
-              m-4 w-full 
-              max-w-md
-              min-w-[280px]
-              min-h-[260px]
-              h-[550px]
-              bg-white 
-              rounded-3xl
-              shadow-2xl 
-              border border-gray-200 
-              flex flex-col 
-              resize
-              overflow-hidden
-            "
-          >
+  className="
+    relative pointer-events-auto 
+    m-4 w-full 
+    max-w-md
+    min-w-[280px]
+    min-h-[260px]
+    bg-white 
+    rounded-3xl
+    shadow-2xl 
+    flex flex-col 
+    overflow-hidden
+  "
+  style={{
+    width: chatSize.width,
+    height: chatSize.height,
+  }}
+>
+  {/* Top-left resize handle */}
+  <div
+    className="absolute top-0 left-0 w-4 h-4 cursor-nwse-resize z-20"
+    onMouseDown={startResize}
+  />
+
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 bg-[#1f7a4a] rounded-t-3xl">
               <div className="flex items-center gap-2">
@@ -1118,23 +1318,45 @@ function PlantDetail({ plant, onBack }) {
               )}
             </div>
 
-            {/* Input area (still placeholder) */}
-            <div className="border-t px-3 py-2 bg-gray-50 rounded-b-3xl">
-              <div className="flex items-center gap-2">
+            {/* Input area with real chat + API */}
+            <div className="border-t px-3 py-2 bg-gray-50 rounded-b-3xl space-y-1">
+              {chatError && (
+                <p className="text-xs text-red-500">
+                  {chatError}
+                </p>
+              )}
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!chatLoading) {
+                    sendChatMessage();
+                  }
+                }}
+                className="flex items-center gap-2"
+              >
                 <input
                   type="text"
-                  placeholder="Chat coming soon…"
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 text-gray-500"
-                  disabled
+                  placeholder="Type in your questions..."
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  disabled={chatLoading}
                 />
                 <button
-                  className="px-3 py-2 text-xs rounded-lg bg-emerald-500 text-white opacity-70 cursor-not-allowed"
-                  disabled
+                  type="submit"
+                  className={`px-3 py-2 text-xs rounded-lg text-white transition ${
+                    chatLoading || !chatInput.trim()
+                      ? "bg-emerald-300 cursor-not-allowed"
+                      : "bg-emerald-500 hover:bg-emerald-600"
+                  }`}
+                  disabled={chatLoading || !chatInput.trim()}
                 >
-                  Send
+                  {chatLoading ? `Asking ${plant.name}…` : "Send"}
                 </button>
-              </div>
+              </form>
             </div>
+
           </div>
         </div>
       )}
