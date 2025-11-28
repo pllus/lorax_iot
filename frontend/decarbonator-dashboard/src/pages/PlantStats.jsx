@@ -1,14 +1,16 @@
 import { useState } from "react";
 
 function PlantStats({ onNavigateToPlant }) {
+  // plant info
   const [plants, setPlants] = useState([
     {
       id: 1,
       name: "Jimmy",
-      species: "Morus Rubra",
+      species: "Morus rubra",
       status: "🟢 Online (Last Connected - Today)",
       health: "🟢 Healthy",
       water: "🟡",
+      // image: "/images/mulberry.jpg",
       image: "/public/images/mulberry.jpg",
     },
     // {

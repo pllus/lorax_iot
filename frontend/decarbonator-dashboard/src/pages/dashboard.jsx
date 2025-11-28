@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getTotalCo2, refreshCo2Cache } from "../utils/co2Cache";
 
 function Dashboard({ sensorData = [], plants = [] }) {
   // For API
@@ -43,20 +44,8 @@ function Dashboard({ sensorData = [], plants = [] }) {
 
     const fetchCo2Count = async () => {
       try {
-        const res = await fetch("/carbon/co2/count");
-        if (!res.ok) {
-          console.error("Failed to fetch CO2 count:", res.status);
-          return;
-        }
-        const data = await res.json();
-
-        if (typeof data === "number") {
-          setTotalCo2(data);
-        } else if (typeof data.count === "number") {
-          setTotalCo2(data.count);
-        } else {
-          console.warn("Unknown /carbon/co2/count response shape:", data);
-        }
+        const totalCo2 = await getTotalCo2();
+        setTotalCo2(totalCo2);
       } catch (err) {
         console.error("Error fetching CO2 count:", err);
       }
@@ -290,9 +279,10 @@ function Dashboard({ sensorData = [], plants = [] }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-2xl shadow-md px-6 py-4 flex flex-col justify-between">
           <p className="text-xs text-gray-500 mb-2">
-            Total Plants
+            Total Plant(s):
           </p>
-          <p className="text-2xl font-semibold">{totalPlants}</p>
+          {/* <p className="text-2xl font-semibold">{totalPlants}</p> */}
+          <p className="text-2xl font-semibold">1 </p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-md px-6 py-4 flex flex-col justify-between">

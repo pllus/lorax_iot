@@ -86,6 +86,8 @@ export default function MapPage() {
   const [plants, setPlants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // Predictions state keyed by sensor name
+  const [predictions, setPredictions] = useState({});
 
   // displayMode: "plants" | "heatmap" | "sensors"
   const [displayMode, setDisplayMode] = useState("plants");
@@ -171,6 +173,56 @@ const sensors = [
   },
 ];
 
+  // -------------------- CO2 Prediction Helpers --------------------
+  const parsePredictResponse = (data) => {
+    if (!data) return null;
+    if (typeof data === "number") return { "5min": data, "1hour": data };
+    if (data["5min"] || data["1hour"]) {
+      return {
+        "5min": (typeof data["5min"] === "object" ? data["5min"].value ?? data["5min"].pred ?? null : data["5min"]),
+        "1hour": (typeof data["1hour"] === "object" ? data["1hour"].value ?? data["1hour"].pred ?? null : data["1hour"]),
+      };
+    }
+    if (data.predictions) return { "5min": data.predictions["5min"], "1hour": data.predictions["1hour"] };
+    const numbers = Object.values(data).flatMap((v) => (typeof v === "number" ? [v] : []));
+    if (numbers.length === 1) return { "5min": numbers[0], "1hour": numbers[0] };
+    if (numbers.length >= 2) return { "5min": numbers[0], "1hour": numbers[1] };
+    return null;
+  };
+
+  const fetchPredictionsForSensor = async (sensor) => {
+    try {
+      const url = `http://127.0.0.1:8000/co2/predict?co2=${encodeURIComponent(sensor.co2 ?? "")}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const data = await res.json();
+      return parsePredictResponse(data);
+    } catch (err) {
+      console.warn("Prediction fetch failed for", sensor.name, err);
+      return null;
+    }
+  };
+
+  const fetchAllPredictions = async () => {
+    try {
+      const results = await Promise.all(
+        sensors.map(async (s) => {
+          const pred = await fetchPredictionsForSensor(s);
+          if (!pred) {
+            const base = Number(s.co2) || 500;
+            return { name: s.name, pred: { "5min": Math.round(base + 5), "1hour": Math.round(base + 30) } };
+          }
+          return { name: s.name, pred };
+        })
+      );
+      const mapObj = {};
+      results.forEach((r) => (mapObj[r.name] = r.pred));
+      setPredictions(mapObj);
+    } catch (e) {
+      console.error("Failed to fetch predictions:", e);
+    }
+  };
+
 
   const showPlants = displayMode === "plants";
   const showHeatmap = displayMode === "heatmap";
@@ -217,7 +269,7 @@ const sensors = [
           style={{
             display: "flex",
             gap: "8px",
-            background: "#e5edff",
+            background: "#dcfce7",
             padding: "4px",
             borderRadius: "999px",
           }}
@@ -231,7 +283,7 @@ const sensors = [
               cursor: "pointer",
               fontSize: "13px",
               backgroundColor:
-                displayMode === "plants" ? "#1d4ed8" : "transparent",
+                displayMode === "plants" ? "#16a34a" : "transparent",
               color: displayMode === "plants" ? "#ffffff" : "#1e293b",
               minWidth: "90px",
             }}
@@ -247,7 +299,7 @@ const sensors = [
               cursor: "pointer",
               fontSize: "13px",
               backgroundColor:
-                displayMode === "heatmap" ? "#1d4ed8" : "transparent",
+                displayMode === "heatmap" ? "#16a34a" : "transparent",
               color: displayMode === "heatmap" ? "#ffffff" : "#1e293b",
               minWidth: "90px",
             }}
@@ -263,7 +315,7 @@ const sensors = [
               cursor: "pointer",
               fontSize: "13px",
               backgroundColor:
-                displayMode === "sensors" ? "#1d4ed8" : "transparent",
+                displayMode === "sensors" ? "#16a34a" : "transparent",
               color: displayMode === "sensors" ? "#ffffff" : "#1e293b",
               minWidth: "90px",
             }}
